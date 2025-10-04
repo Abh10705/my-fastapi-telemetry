@@ -28,11 +28,7 @@ def read_root():
 
 @app.post("/api/latency")
 def analyze_latency(request: LatencyRequest):
-    # Load telemetry data (in a real scenario, this would come from a database)
-    # For now, we'll simulate loading the sample data
-    
     # Sample telemetry data structure based on typical ecommerce metrics
-    # This would normally be loaded from your data source
     sample_data = {
         "apac": {
             "latencies": [120, 145, 178, 190, 156, 167, 189, 201, 134, 188],
@@ -72,5 +68,7 @@ def analyze_latency(request: LatencyRequest):
             "avg_uptime": round(avg_uptime, 3),
             "breaches": breaches
         }
+    
+    
     
     return results
