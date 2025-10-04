@@ -1,99 +1,94 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List
 import pandas as pd
-import numpy as np
-import json
-import os
+from pathlib import Path
 
+# Create the main FastAPI application object. This is the core of your API.
 app = FastAPI()
 
-# Enable CORS for all origins - updated configuration
+# ==============================================================================
+#  CORS MIDDLEWARE CONFIGURATION
+# ==============================================================================
+# This is the crucial part that fixes the "Enable CORS" error.
+# A "middleware" is code that processes every single request before it reaches
+# your main logic. The CORSMiddleware adds the necessary headers to the response
+# to tell browsers that it's safe to allow requests from other websites.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,  # Changed to False when using allow_origins=["*"]
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # The '*' means to allow requests from ANY origin/website.
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (like GET, POST, etc.).
+    allow_headers=["*"],  # Allow all HTTP headers in the request.
 )
+# ==============================================================================
 
-class LatencyRequest(BaseModel):
-    regions: List[str]
-    threshold_ms: float
 
-@app.get("/")
-def read_root():
-    return {"message": "eShopCo Latency Analytics API"}
+# --- Data Loading ---
+# This section handles loading your data file.
+DATA_LOADED_SUCCESSFULLY = False
+df = None
+try:
+    # Vercel runs the script from the root of the project, so the path must be 'api/telemetry.csv'.
+    data_file_path = Path("api/telemetry.csv")
+    df = pd.read_csv(data_file_path)
+    # This flag lets our endpoint know if the data is ready.
+    DATA_LOADED_SUCCESSFULLY = True
+except FileNotFoundError:
+    # If the file isn't found during startup, we set the flag to False.
+    # The endpoint will then return a helpful error message.
+    DATA_LOADED_SUCCESSFULLY = False
 
-@app.post("/latency")
-def analyze_latency(request: LatencyRequest):
-    # Real telemetry data from eShopCo
-    telemetry_data = [
-        {"region": "apac", "service": "analytics", "latency_ms": 115.34, "uptime_pct": 99.405},
-        {"region": "apac", "service": "checkout", "latency_ms": 134.67, "uptime_pct": 98.733},
-        {"region": "apac", "service": "catalog", "latency_ms": 108.61, "uptime_pct": 98.332},
-        {"region": "apac", "service": "payments", "latency_ms": 202.13, "uptime_pct": 98.371},
-        {"region": "apac", "service": "payments", "latency_ms": 114.43, "uptime_pct": 97.767},
-        {"region": "apac", "service": "recommendations", "latency_ms": 116.86, "uptime_pct": 98.591},
-        {"region": "apac", "service": "recommendations", "latency_ms": 184.42, "uptime_pct": 98.927},
-        {"region": "apac", "service": "recommendations", "latency_ms": 124.05, "uptime_pct": 97.826},
-        {"region": "apac", "service": "recommendations", "latency_ms": 170.74, "uptime_pct": 98.778},
-        {"region": "apac", "service": "recommendations", "latency_ms": 152.91, "uptime_pct": 97.282},
-        {"region": "apac", "service": "payments", "latency_ms": 211.55, "uptime_pct": 98.137},
-        {"region": "apac", "service": "analytics", "latency_ms": 170.73, "uptime_pct": 97.35},
-        {"region": "emea", "service": "checkout", "latency_ms": 187.82, "uptime_pct": 99.451},
-        {"region": "emea", "service": "catalog", "latency_ms": 188.63, "uptime_pct": 97.706},
-        {"region": "emea", "service": "recommendations", "latency_ms": 195.15, "uptime_pct": 98.706},
-        {"region": "emea", "service": "recommendations", "latency_ms": 185.52, "uptime_pct": 97.675},
-        {"region": "emea", "service": "support", "latency_ms": 140.54, "uptime_pct": 98.15},
-        {"region": "emea", "service": "support", "latency_ms": 231.38, "uptime_pct": 99.345},
-        {"region": "emea", "service": "checkout", "latency_ms": 115.95, "uptime_pct": 98.679},
-        {"region": "emea", "service": "payments", "latency_ms": 127.04, "uptime_pct": 97.617},
-        {"region": "emea", "service": "payments", "latency_ms": 190.33, "uptime_pct": 98.852},
-        {"region": "emea", "service": "checkout", "latency_ms": 130.63, "uptime_pct": 97.219},
-        {"region": "emea", "service": "catalog", "latency_ms": 164.19, "uptime_pct": 98.176},
-        {"region": "emea", "service": "recommendations", "latency_ms": 204.93, "uptime_pct": 97.304},
-        {"region": "amer", "service": "checkout", "latency_ms": 154.84, "uptime_pct": 99.348},
-        {"region": "amer", "service": "support", "latency_ms": 181.45, "uptime_pct": 98.553},
-        {"region": "amer", "service": "recommendations", "latency_ms": 127.5, "uptime_pct": 98.257},
-        {"region": "amer", "service": "catalog", "latency_ms": 146.61, "uptime_pct": 98.779},
-        {"region": "amer", "service": "support", "latency_ms": 124.19, "uptime_pct": 98.552},
-        {"region": "amer", "service": "analytics", "latency_ms": 219.99, "uptime_pct": 97.52},
-        {"region": "amer", "service": "support", "latency_ms": 236.89, "uptime_pct": 98.589},
-        {"region": "amer", "service": "recommendations", "latency_ms": 133.0, "uptime_pct": 97.447},
-        {"region": "amer", "service": "payments", "latency_ms": 217.97, "uptime_pct": 97.536},
-        {"region": "amer", "service": "support", "latency_ms": 133.0, "uptime_pct": 99.41},
-        {"region": "amer", "service": "analytics", "latency_ms": 210.25, "uptime_pct": 98.287},
-        {"region": "amer", "service": "payments", "latency_ms": 215.46, "uptime_pct": 99.358}
-    ]
+
+# --- API Endpoint Definition ---
+# This "decorator" tells FastAPI that the function below should handle
+# any HTTP POST request that comes to the root URL ("/").
+@app.post("/")
+async def analyze_telemetry(request: Request):
+    """
+    This is the main logic of your API. It receives the POST request,
+    processes the data based on the JSON payload, and returns the results.
+    """
     
-    results = {}
+    # First, check if the data was loaded correctly during startup.
+    if not DATA_LOADED_SUCCESSFULLY:
+        return {"error": "Server-side error: The 'telemetry.csv' file could not be found on the server."}
+
+    # 1. Get the JSON data from the body of the POST request.
+    body = await request.json()
     
-    for region in request.regions:
-        # Filter data for this region
-        region_data = [d for d in telemetry_data if d["region"] == region]
+    # 2. Extract the 'regions' and 'threshold_ms' values.
+    # .get() provides default values if the keys are missing from the JSON.
+    regions_to_process = body.get("regions", [])
+    latency_threshold = body.get("threshold_ms", 180)
+    
+    # 3. Prepare an empty dictionary to store our results.
+    response_data = {}
+    
+    # 4. Loop through each region the user requested (e.g., ["apac", "emea"]).
+    for region in regions_to_process:
+        # Filter the DataFrame to get only the rows for the current region.
+        region_df = df[df['region'] == region]
         
-        if not region_data:
-            results[region] = {
-                "error": f"Region {region} not found"
-            }
+        if region_df.empty:
+            response_data[region] = {"error": "No data found for this region"}
             continue
             
-        latencies = np.array([d["latency_ms"] for d in region_data])
-        uptimes = np.array([d["uptime_pct"] / 100.0 for d in region_data])  # Convert percentage to decimal
+        # 5. Calculate the required metrics using pandas.
+        avg_latency = region_df['latency_ms'].mean()
+        p95_latency = region_df['latency_ms'].quantile(0.95)
+        avg_uptime = region_df['uptime'].mean()
         
-        # Calculate metrics
-        avg_latency = float(np.mean(latencies))
-        p95_latency = float(np.percentile(latencies, 95))
-        avg_uptime = float(np.mean(uptimes))
-        breaches = int(np.sum(latencies > request.threshold_ms))
+        # Count rows where latency is above the threshold.
+        breaches = len(region_df[region_df['latency_ms'] > latency_threshold])
         
-        results[region] = {
+        # 6. Store the results for this region, rounding for a clean output.
+        response_data[region] = {
             "avg_latency": round(avg_latency, 2),
             "p95_latency": round(p95_latency, 2),
-            "avg_uptime": round(avg_uptime, 3),
-            "breaches": breaches
+            "avg_uptime": round(avg_uptime, 4),
+            "breaches": int(breaches)
         }
-    
-    return results
+        
+    # 7. Return the final dictionary. FastAPI automatically converts it to JSON.
+    return response_data
+
