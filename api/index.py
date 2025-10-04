@@ -26,7 +26,7 @@ class LatencyRequest(BaseModel):
 def read_root():
     return {"message": "eShopCo Latency Analytics API"}
 
-@app.post("/api/latency")
+@app.post("/latency")
 def analyze_latency(request: LatencyRequest):
     # Real telemetry data from eShopCo
     telemetry_data = [
